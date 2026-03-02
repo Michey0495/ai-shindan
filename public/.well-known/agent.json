@@ -1,0 +1,57 @@
+{
+  "name": "AI性格診断",
+  "description": "10の質問に答えるだけで、AIがあなたの性格タイプを詳しく分析するWebアプリ",
+  "url": "https://ai-shindan.ezoai.jp",
+  "version": "1.0.0",
+  "capabilities": {
+    "streaming": false,
+    "pushNotifications": false
+  },
+  "provider": {
+    "organization": "Ghostfee",
+    "url": "https://github.com/Michey0495"
+  },
+  "documentationUrl": "https://ai-shindan.ezoai.jp/llms.txt",
+  "authentication": {
+    "schemes": ["none"]
+  },
+  "defaultInputModes": ["text"],
+  "defaultOutputModes": ["text"],
+  "protocols": {
+    "mcp": {
+      "url": "https://ai-shindan.ezoai.jp/api/mcp",
+      "transport": "streamable-http",
+      "description": "MCP Server - AI性格診断の全ツールにアクセス可能"
+    }
+  },
+  "skills": [
+    {
+      "id": "diagnose_personality",
+      "name": "性格診断",
+      "description": "10問の回答データからAIが性格タイプを分析し、診断結果を生成する",
+      "uri": "https://ai-shindan.ezoai.jp/api/diagnose",
+      "tags": ["diagnosis", "personality", "ai"]
+    },
+    {
+      "id": "get_recent_results",
+      "name": "最近の診断結果取得",
+      "description": "最近の診断結果一覧を取得する（フィード）",
+      "uri": "https://ai-shindan.ezoai.jp/api/feed",
+      "tags": ["feed", "results", "list"]
+    },
+    {
+      "id": "get_similar_types",
+      "name": "類似タイプ取得",
+      "description": "指定した診断結果IDに基づいて、類似する性格タイプの結果を取得する",
+      "uri": "https://ai-shindan.ezoai.jp/api/similar/{id}",
+      "tags": ["similar", "matching", "personality"]
+    },
+    {
+      "id": "generate_share_text",
+      "name": "共有テキスト生成",
+      "description": "診断結果からSNS共有用のテキストを生成する",
+      "uri": "https://ai-shindan.ezoai.jp/api/share/{id}",
+      "tags": ["share", "sns", "text"]
+    }
+  ]
+}
