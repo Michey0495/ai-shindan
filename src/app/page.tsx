@@ -54,7 +54,7 @@ export default function Home() {
           </Button>
         </Link>
 
-        <p className="mt-6 text-xs text-gray-600">
+        <p className="mt-6 text-xs text-white/30">
           登録不要・無料・何度でも診断OK
         </p>
       </div>

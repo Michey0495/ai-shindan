@@ -55,22 +55,22 @@ export default function QuizPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-950 via-purple-950/30 to-gray-950">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-black via-purple-950/30 to-black">
         <div className="text-center">
           <Spinner size="lg" className="text-purple-400 mb-6" />
           <p className="text-white text-xl font-bold mb-2">AIが分析中...</p>
-          <p className="text-gray-400 text-sm">あなたの回答を深く読み解いています</p>
+          <p className="text-white/50 text-sm">あなたの回答を深く読み解いています</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-gradient-to-br from-gray-950 via-purple-950/30 to-gray-950">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-gradient-to-br from-black via-purple-950/30 to-black">
       <div className="w-full max-w-xl">
         {/* Progress */}
         <div className="mb-6">
-          <div className="flex justify-between text-sm text-gray-400 mb-2">
+          <div className="flex justify-between text-sm text-white/50 mb-2">
             <span>質問 {current + 1} / {questions.length}</span>
             <span>{Math.round(progress)}%</span>
           </div>
@@ -93,7 +93,7 @@ export default function QuizPage() {
               className={`w-full text-left px-5 py-4 rounded-xl border transition-all text-sm md:text-base ${
                 selected === opt.value
                   ? "bg-purple-600/30 border-purple-500 text-white"
-                  : "bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:border-white/20"
+                  : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:border-white/20"
               }`}
             >
               <span className="font-bold text-purple-400 mr-3">{opt.value}</span>

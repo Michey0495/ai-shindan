@@ -35,15 +35,15 @@ export default function ResultCard({ result, colors }: Props) {
         id="result-card"
         className={`bg-gradient-to-br ${colors.from} ${colors.to} p-1 rounded-3xl shadow-2xl mb-6`}
       >
-        <div className="bg-gray-950 rounded-3xl p-8 text-center">
+        <div className="bg-black rounded-3xl p-8 text-center">
           <div className="text-sm font-mono text-white/30 tracking-[0.3em] uppercase mb-4">Type</div>
-          <div className="text-xs font-semibold text-gray-500 tracking-widest uppercase mb-2">
+          <div className="text-xs font-semibold text-white/40 tracking-widest uppercase mb-2">
             あなたの性格タイプ
           </div>
           <h1 className={`text-2xl md:text-3xl font-bold ${colors.text} mb-4`}>
             {result.personalityType}
           </h1>
-          <p className="text-gray-300 text-sm leading-relaxed mb-6">
+          <p className="text-white/70 text-sm leading-relaxed mb-6">
             {result.description}
           </p>
 
@@ -62,17 +62,17 @@ export default function ResultCard({ result, colors }: Props) {
           {/* Advice */}
           <div className="bg-white/5 rounded-xl p-4 text-left border border-white/10">
             <div className="text-xs font-bold text-white/40 uppercase tracking-widest mb-2">AIからのアドバイス</div>
-            <p className="text-gray-300 text-sm leading-relaxed">{result.advice}</p>
+            <p className="text-white/70 text-sm leading-relaxed">{result.advice}</p>
           </div>
         </div>
       </div>
 
       {/* Share buttons */}
       <div className="space-y-3">
-        <p className="text-center text-gray-500 text-sm">結果をシェアする</p>
+        <p className="text-center text-white/40 text-sm">結果をシェアする</p>
         <div className="flex gap-3">
           <a href={tweetUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
-            <Button className="w-full bg-black hover:bg-gray-900 text-white border border-white/20 rounded-xl py-5">
+            <Button className="w-full bg-black hover:bg-white/10 text-white border border-white/20 rounded-xl py-5">
               𝕏 でシェア
             </Button>
           </a>
@@ -93,7 +93,7 @@ export default function ResultCard({ result, colors }: Props) {
       {/* Retry */}
       <div className="mt-6 text-center">
         <Link href="/quiz">
-          <Button variant="ghost" className="text-gray-400 hover:text-white">
+          <Button variant="ghost" className="text-white/50 hover:text-white">
             もう一度診断する →
           </Button>
         </Link>
