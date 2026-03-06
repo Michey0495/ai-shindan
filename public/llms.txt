@@ -1,51 +1,69 @@
-# AI性格診断
+# AI性格診断 (ai-shindan)
+> 10の質問に答えるだけでAIが性格タイプを分析するWebアプリ
 
-> 10の質問に答えるだけで、AIがあなたの性格タイプを詳しく分析するWebアプリ
+## URL
+https://ai-shindan.ezoai.jp
 
-## Overview
-AI性格診断は、10問の質問からAI（Claude Haiku）があなたの性格を多角的に分析し、結果カードを生成するWebアプリです。
+## 概要
+AI性格診断は、10問の性格診断クイズに回答すると、AIが性格タイプ名・説明・特徴・アドバイスを生成するサービスです。
+結果はSNSでシェアでき、他のユーザーとの比較も可能です。
 
-## Features
-- 10問の性格診断クイズ
-- AIによる性格タイプ分析
-- SNS共有用の結果カード生成
-- OGP対応
+## MCP (Model Context Protocol)
 
-## Technical Stack
-- Framework: Next.js 15 (App Router)
-- Language: TypeScript
-- Styling: Tailwind CSS + shadcn/ui
-- AI: Anthropic Claude API (claude-haiku-4-5)
-- Storage: Vercel KV
-- Hosting: Vercel
+### Endpoint
+POST https://ai-shindan.ezoai.jp/api/mcp
 
-## API
-- POST /api/diagnose - 回答データを送信し、AIの性格分析結果を取得
-- GET /api/feed - 最近の診断結果一覧を取得
-- GET /api/similar/[id] - 指定した診断結果に類似する性格タイプを取得
-- GET /api/share/[id] - 診断結果からSNS共有用テキストを生成
+### Protocol
+JSON-RPC 2.0 over HTTP POST (Content-Type: application/json)
 
-## MCP Tools
-MCP Server: https://ai-shindan.ezoai.jp/api/mcp (streamable-http)
+### Authentication
+不要（レート制限あり: 10リクエスト/10分）
 
-- diagnose_personality - 10問の回答データからAIが性格タイプを分析し、診断結果を生成する
-- get_recent_results - 最近の診断結果一覧を取得する（フィード）
-- get_similar_types - 指定した診断結果IDに基づいて、類似する性格タイプの結果を取得する
-- generate_share_text - 診断結果からSNS共有用のテキストを生成する
+### 使用フロー
 
-## Pages
-- / : トップページ（診断開始CTA）
-- /quiz : クイズページ（10問）
-- /result/[id] : 結果ページ（性格カード・共有）
-- /feed : 最近の診断結果フィード
-- /result/[id]/similar : 類似タイプ一覧ページ
+Step 1: Initialize
+```json
+{"jsonrpc":"2.0","id":"1","method":"initialize","params":{}}
+```
 
-## Links
-- Website: https://ai-shindan.ezoai.jp
-- GitHub: https://github.com/Michey0495/ai-shindan
-- Agent Card: https://ai-shindan.ezoai.jp/.well-known/agent.json
-- MCP Server: https://ai-shindan.ezoai.jp/api/mcp
+Step 2: List Tools
+```json
+{"jsonrpc":"2.0","id":"2","method":"tools/list","params":{}}
+```
 
-## Contact
-- Developer: Ghostfee
-- GitHub: https://github.com/Michey0495
+Step 3: Call Tool
+```json
+{"jsonrpc":"2.0","id":"3","method":"tools/call","params":{"name":"diagnose_personality","arguments":{"answers":{"1":"A","2":"B","3":"C","4":"A","5":"D","6":"B","7":"A","8":"C","9":"B","10":"D"}}}}
+```
+
+### Tools
+
+#### diagnose_personality
+10問の回答から性格タイプを分析する。
+- answers (object, required): {"1":"A","2":"B",...,"10":"D"} 形式の回答
+- agentName (string, optional): 診断を受けるエージェント名
+- agentDescription (string, optional): エージェントの説明
+- 戻り値: 性格タイプ、説明、特徴、アドバイス、結果URL
+
+#### get_recent_results
+最近の診断結果一覧を取得する。
+- limit (number, optional): 取得件数（デフォルト20、最大50）
+- 戻り値: 診断結果の配列
+
+#### get_similar_types
+指定した結果と類似する性格タイプを探す。
+- resultId (string, required): 診断結果ID
+- 戻り値: 類似結果の配列
+
+#### generate_share_text
+SNS投稿用テキストを生成する。
+- resultId (string, required): 診断結果ID
+- 戻り値: シェア用テキスト
+
+### 制約
+- diagnose_personality: レート制限 10回/10分
+- 回答の値: A/B/C/D のいずれか
+- 質問ID: 1-10
+
+## Provider
+ezoai.jp - AIエージェント向けサービスプラットフォーム

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 
 export default function Home() {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-4 bg-black">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4">
       <section className="relative min-h-[60vh] flex items-center justify-center overflow-hidden w-full">
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(139,92,246,0.3),transparent)]" />
@@ -57,6 +57,6 @@ export default function Home() {
           登録不要・無料・何度でも診断OK
         </p>
       </div>
-    </main>
+    </div>
   );
 }

@@ -17,7 +17,7 @@ export default function ResultCard({ result, colors }: Props) {
   const resultUrl = `${siteUrl}/result/${result.id}`;
 
   const tweetText = encodeURIComponent(
-    `私の性格タイプは「${result.emoji} ${result.personalityType}」でした！\n\n${result.description.slice(0, 60)}...\n\n#AI性格診断`
+    `私の性格タイプは「${result.personalityType}」でした！\n\n${result.description.slice(0, 60)}...\n\n#AI性格診断`
   );
   const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}&url=${encodeURIComponent(resultUrl)}`;
 
@@ -36,7 +36,7 @@ export default function ResultCard({ result, colors }: Props) {
         className={`bg-gradient-to-br ${colors.from} ${colors.to} p-1 rounded-3xl shadow-2xl mb-6`}
       >
         <div className="bg-gray-950 rounded-3xl p-8 text-center">
-          <div className="text-6xl mb-4">{result.emoji}</div>
+          <div className="text-sm font-mono text-white/30 tracking-[0.3em] uppercase mb-4">Type</div>
           <div className="text-xs font-semibold text-gray-500 tracking-widest uppercase mb-2">
             あなたの性格タイプ
           </div>
@@ -61,7 +61,7 @@ export default function ResultCard({ result, colors }: Props) {
 
           {/* Advice */}
           <div className="bg-white/5 rounded-xl p-4 text-left border border-white/10">
-            <div className="text-xs font-bold text-gray-500 mb-2">💡 AIからのアドバイス</div>
+            <div className="text-xs font-bold text-white/40 uppercase tracking-widest mb-2">AIからのアドバイス</div>
             <p className="text-gray-300 text-sm leading-relaxed">{result.advice}</p>
           </div>
         </div>

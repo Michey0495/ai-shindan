@@ -1,38 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
-import { kv } from "@vercel/kv";
 import { nanoid } from "nanoid";
-import { questions } from "@/data/questions";
+import { callAI, sanitizeInput } from "@/lib/ai";
+import { buildDiagnosisPrompt } from "@/app/api/diagnose/route";
 import type { DiagnosisResult } from "@/types";
-
-const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "qwen2.5:1.5b";
 
 const COLOR_SCHEMES = ["red", "blue", "green", "purple", "yellow", "pink"] as const;
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://shindan.ezoai.jp";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ai-shindan.ezoai.jp";
 
-function buildPrompt(answers: Record<number, string>): string {
-  const answerLines = questions
-    .map((q) => {
-      const selectedOption = q.options.find((o) => o.value === answers[q.id]);
-      return `Q${q.id}: ${q.text}\n-> ${selectedOption?.label ?? "未回答"}`;
-    })
-    .join("\n\n");
+const RATE_LIMIT = 10;
+const RATE_WINDOW_SEC = 600;
+const memRateMap = new Map<string, { count: number; resetAt: number }>();
 
-  return `あなたはプロの性格分析AIです。以下の10問の回答を元に、その人の性格タイプを分析してください。
-
-【回答データ】
-${answerLines}
-
-以下のJSON形式のみで回答してください。説明文や前置きは不要です。
-
-{
-  "personalityType": "性格タイプ名（例：情熱の指揮者型、共感の守護者型など、ユニークで覚えやすい名前）",
-  "description": "この性格タイプの詳しい説明（120〜150文字、です・ます調）",
-  "traits": ["特徴1", "特徴2", "特徴3", "特徴4", "特徴5"],
-  "colorScheme": "red | blue | green | purple | yellow | pink のいずれか（性格に合ったもの）",
-  "advice": "この性格タイプへのAIからの具体的なアドバイス（80〜100文字、です・ます調）"
-}`;
+async function isRateLimited(ip: string): Promise<boolean> {
+  try {
+    if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+      const { kv } = await import("@vercel/kv");
+      const key = `ratelimit:shindan:mcp:${ip}`;
+      const count = await kv.incr(key);
+      if (count === 1) {
+        await kv.expire(key, RATE_WINDOW_SEC);
+      }
+      return count > RATE_LIMIT;
+    }
+  } catch {
+    // Fall through
+  }
+  const now = Date.now();
+  const entry = memRateMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    memRateMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW_SEC * 1000 });
+    return false;
+  }
+  if (entry.count >= RATE_LIMIT) return true;
+  entry.count++;
+  return false;
 }
 
 function generateShareText(result: DiagnosisResult): string {
@@ -118,27 +120,12 @@ async function handleDiagnose(
   agentName?: string,
   agentDescription?: string
 ): Promise<DiagnosisResult> {
-  const prompt = buildPrompt(answers);
-
-  const res = await fetch(`${OLLAMA_URL}/api/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: OLLAMA_MODEL,
-      messages: [{ role: "user", content: prompt }],
-      stream: false,
-      options: { num_ctx: 2048, temperature: 0.7 },
-    }),
-  });
-  if (!res.ok) {
-    throw new Error("AI generation failed");
-  }
-  const data = await res.json();
-  const text = data.message?.content ?? "";
+  const prompt = buildDiagnosisPrompt(answers);
+  const text = await callAI(prompt);
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
-    throw new Error("Invalid AI response format");
+    throw new Error("AI応答からJSONを抽出できませんでした");
   }
 
   const parsed = JSON.parse(jsonMatch[0]);
@@ -151,6 +138,7 @@ async function handleDiagnose(
   const result: DiagnosisResult = {
     id,
     personalityType: parsed.personalityType ?? "ユニーク型",
+    emoji: "",
     description: parsed.description ?? "",
     traits: Array.isArray(parsed.traits) ? parsed.traits.slice(0, 6) : [],
     colorScheme,
@@ -163,6 +151,7 @@ async function handleDiagnose(
 
   result.shareText = generateShareText(result);
 
+  const { kv } = await import("@vercel/kv");
   await kv.set(`result:${id}`, result, { ex: 60 * 60 * 24 * 365 });
   await kv.zadd("results:feed", { score: result.createdAt, member: result.id });
 
@@ -170,6 +159,7 @@ async function handleDiagnose(
 }
 
 async function handleGetRecentResults(limit: number = 20): Promise<DiagnosisResult[]> {
+  const { kv } = await import("@vercel/kv");
   const safeLimit = Math.min(Math.max(1, limit), 50);
   const ids = await kv.zrange("results:feed", 0, safeLimit - 1, { rev: true });
 
@@ -185,6 +175,7 @@ async function handleGetRecentResults(limit: number = 20): Promise<DiagnosisResu
 }
 
 async function handleGetSimilarTypes(resultId: string): Promise<DiagnosisResult[]> {
+  const { kv } = await import("@vercel/kv");
   const target = await kv.get<DiagnosisResult>(`result:${resultId}`);
   if (!target) throw new Error("Result not found");
 
@@ -209,6 +200,7 @@ async function handleGetSimilarTypes(resultId: string): Promise<DiagnosisResult[
 }
 
 async function handleGenerateShareText(resultId: string): Promise<string> {
+  const { kv } = await import("@vercel/kv");
   const result = await kv.get<DiagnosisResult>(`result:${resultId}`);
   if (!result) throw new Error("Result not found");
 
@@ -216,7 +208,6 @@ async function handleGenerateShareText(resultId: string): Promise<string> {
 
   const shareText = generateShareText(result);
 
-  // Cache the generated share text
   result.shareText = shareText;
   await kv.set(`result:${resultId}`, result, { ex: 60 * 60 * 24 * 365 });
 
@@ -240,6 +231,16 @@ export async function POST(req: NextRequest) {
       }
 
       case "tools/call": {
+        const ip =
+          req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+        if (await isRateLimited(ip)) {
+          return NextResponse.json({
+            jsonrpc: "2.0",
+            id: requestId ?? null,
+            error: { code: -32000, message: "Rate limit exceeded. Try again later." },
+          });
+        }
+
         const toolName = params?.name;
         const toolArgs = params?.arguments;
 
@@ -258,8 +259,8 @@ export async function POST(req: NextRequest) {
 
             const result = await handleDiagnose(
               toolArgs.answers,
-              toolArgs.agentName,
-              toolArgs.agentDescription
+              toolArgs.agentName ? sanitizeInput(String(toolArgs.agentName), 100) : undefined,
+              toolArgs.agentDescription ? sanitizeInput(String(toolArgs.agentDescription), 300) : undefined
             );
 
             return NextResponse.json({
