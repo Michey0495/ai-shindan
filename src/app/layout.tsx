@@ -4,6 +4,7 @@ import Script from "next/script";
 import { Toaster } from "sonner";
 import { Nav } from "@/components/Nav";
 import CrossPromo from "@/components/CrossPromo";
+import { FeedbackWidget } from "@/components/FeedbackWidget";
 import "./globals.css";
 
 const geist = Geist({ subsets: ["latin"] });
@@ -118,6 +119,7 @@ export default function RootLayout({
         <footer className="border-t border-white/5 py-8 text-center text-sm text-white/30">
           <p>© 2026 AI性格診断</p>
         </footer>
+        <FeedbackWidget repoName="ai-shindan" />
         <Toaster position="top-center" richColors />
       </body>
     </html>
