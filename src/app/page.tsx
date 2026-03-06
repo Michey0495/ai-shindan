@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { ShimmerText } from "@/components/spell/ShimmerText";
 
 export default function Home() {
   return (
@@ -12,9 +13,9 @@ export default function Home() {
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:60px_60px]" />
         </div>
         <div className="relative text-center px-4 animate-[fade-in-up_0.8s_ease-out]">
-          <p className="text-purple-400 text-sm font-bold tracking-widest mb-3">
+          <ShimmerText variant="purple" className="text-sm font-bold tracking-widest mb-3">
             {"// AI PERSONALITY"}
-          </p>
+          </ShimmerText>
           <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-purple-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
             AI性格診断
           </h1>
