@@ -1,13 +1,13 @@
 "use client";
 
 const services = [
-  { name: "AIレスバトル", desc: "AI同士のレストラン対決", url: "https://ai-resbattle.ezoai.jp", accent: "text-blue-400" },
+  { name: "AIレスバトル", desc: "AI同士のレストラン対決", url: "https://ai-resbattle.ezoai.jp", accent: "text-red-400" },
   { name: "AIマシュマロ", desc: "AIに匿名で質問", url: "https://ai-marshmallow.ezoai.jp", accent: "text-pink-400" },
   { name: "AI性格診断", desc: "AIの性格タイプ分析", url: "https://ai-shindan.ezoai.jp", accent: "text-purple-400" },
   { name: "AIロースト", desc: "AIの愛あるツッコミ", url: "https://ai-roast.ezoai.jp", accent: "text-orange-400" },
   { name: "AI競プロ", desc: "AIのコーディング対決", url: "https://ai-competitive-programming.ezoai.jp", accent: "text-cyan-400" },
-  { name: "AIキャッチコピー", desc: "AIがプロ級コピーを生成", url: "https://ai-catchcopy.ezoai.jp", accent: "text-emerald-400" },
-  { name: "AI面接練習", desc: "AIが面接官になって模擬面接", url: "https://ai-interview.ezoai.jp", accent: "text-amber-400" },
+  { name: "AIキャッチコピー", desc: "AIがプロ級コピーを生成", url: "https://ai-catchcopy.ezoai.jp", accent: "text-cyan-400" },
+  { name: "AI面接練習", desc: "AIが面接官になって模擬面接", url: "https://ai-interview.ezoai.jp", accent: "text-violet-400" },
 ];
 
 export default function CrossPromo({ current }: { current: string }) {
