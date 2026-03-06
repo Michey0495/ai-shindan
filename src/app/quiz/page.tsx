@@ -6,6 +6,7 @@ import { questions } from "@/data/questions";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import { Spinner } from "@/components/spell/Spinner";
 
 export default function QuizPage() {
   const router = useRouter();
@@ -56,7 +57,7 @@ export default function QuizPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-950 via-purple-950/30 to-gray-950">
         <div className="text-center">
-          <div className="text-5xl mb-6 animate-pulse">*</div>
+          <Spinner size="lg" className="text-purple-400 mb-6" />
           <p className="text-white text-xl font-bold mb-2">AIが分析中...</p>
           <p className="text-gray-400 text-sm">あなたの回答を深く読み解いています</p>
         </div>
