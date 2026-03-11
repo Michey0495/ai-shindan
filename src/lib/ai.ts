@@ -12,19 +12,27 @@ const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY;
 
 export async function callAI(prompt: string): Promise<string> {
-  if (ANTHROPIC_API_KEY) {
-    const Anthropic = (await import("@anthropic-ai/sdk")).default;
-    const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
-    const message = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 1024,
-      messages: [{ role: "user", content: prompt }],
+  // Together AI (primary)
+  if (TOGETHER_API_KEY) {
+    const res = await fetch("https://api.together.xyz/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${TOGETHER_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "Qwen/Qwen2.5-7B-Instruct-Turbo",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.7,
+      }),
     });
-    const block = message.content[0];
-    return block.type === "text" ? block.text : "";
+    if (res.ok) {
+      const data = await res.json();
+      return data.choices?.[0]?.message?.content ?? "";
+    }
   }
 
-  // Ollama (local or Cloudflare Tunnel)
+  // Ollama (local fallback)
   try {
     const res = await fetch(`${OLLAMA_URL}/api/chat`, {
       method: "POST",
@@ -42,21 +50,17 @@ export async function callAI(prompt: string): Promise<string> {
     }
   } catch {}
 
-  // Together AI fallback
-  if (TOGETHER_API_KEY) {
-    const res = await fetch("https://api.together.xyz/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${TOGETHER_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "Qwen/Qwen2.5-7B-Instruct-Turbo",
-        messages: [{ role: "user", content: prompt }],
-      }),
+  // Anthropic fallback
+  if (ANTHROPIC_API_KEY) {
+    const Anthropic = (await import("@anthropic-ai/sdk")).default;
+    const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+    const message = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 1024,
+      messages: [{ role: "user", content: prompt }],
     });
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content ?? "";
+    const block = message.content[0];
+    return block.type === "text" ? block.text : "";
   }
 
   throw new Error("AI backend unavailable");
