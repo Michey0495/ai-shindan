@@ -1,6 +1,6 @@
 {
-  "name": "AI性格診断",
-  "description": "10の質問に答えるだけで、AIがあなたの性格タイプを詳しく分析するWebアプリ",
+  "name": "AI自己分析",
+  "description": "AIが性格タイプ・能力値・二つ名を分析し、ビジュアルカード画像を生成する自己分析プラットフォーム。10問クイズまたはフリーフォーム入力に対応。",
   "url": "https://ai-shindan.ezoai.jp",
   "version": "1.0.0",
   "capabilities": {
@@ -21,37 +21,51 @@
     "mcp": {
       "url": "https://ai-shindan.ezoai.jp/api/mcp",
       "transport": "streamable-http",
-      "description": "MCP Server - AI性格診断の全ツールにアクセス可能"
+      "description": "MCP Server - 性格分析・プロフカード生成・統計データ・比較の全6ツール"
     }
   },
   "skills": [
     {
       "id": "diagnose_personality",
-      "name": "性格診断",
-      "description": "10問の回答データからAIが性格タイプを分析し、診断結果を生成する",
-      "uri": "https://ai-shindan.ezoai.jp/api/diagnose",
-      "tags": ["diagnosis", "personality", "ai"]
+      "name": "性格分析",
+      "description": "10問の回答データからAIが性格タイプ・能力値・二つ名を分析。画像カードURLも返す",
+      "uri": "https://ai-shindan.ezoai.jp/api/mcp",
+      "tags": ["diagnosis", "personality", "ai", "image"]
+    },
+    {
+      "id": "generate_profile_card",
+      "name": "プロフカード生成",
+      "description": "名前と趣味からビジュアルプロフカードを即座に生成。画像カードURLも返す",
+      "uri": "https://ai-shindan.ezoai.jp/api/mcp",
+      "tags": ["profile", "card", "image", "generate"]
+    },
+    {
+      "id": "get_type_statistics",
+      "name": "タイプ統計",
+      "description": "全診断データの性格タイプ分布・平均能力値・共通特徴を取得",
+      "uri": "https://ai-shindan.ezoai.jp/api/mcp",
+      "tags": ["statistics", "data", "analytics"]
     },
     {
       "id": "get_recent_results",
-      "name": "最近の診断結果取得",
-      "description": "最近の診断結果一覧を取得する（フィード）",
-      "uri": "https://ai-shindan.ezoai.jp/api/feed",
+      "name": "最近の結果取得",
+      "description": "最近の分析結果一覧を取得する（フィード）",
+      "uri": "https://ai-shindan.ezoai.jp/api/mcp",
       "tags": ["feed", "results", "list"]
     },
     {
-      "id": "get_similar_types",
-      "name": "類似タイプ取得",
-      "description": "指定した診断結果IDに基づいて、類似する性格タイプの結果を取得する",
-      "uri": "https://ai-shindan.ezoai.jp/api/similar/{id}",
-      "tags": ["similar", "matching", "personality"]
+      "id": "compare_results",
+      "name": "結果比較",
+      "description": "2つの分析結果の性格タイプ・能力値・特徴を比較",
+      "uri": "https://ai-shindan.ezoai.jp/api/mcp",
+      "tags": ["compare", "matching", "personality"]
     },
     {
-      "id": "generate_share_text",
-      "name": "共有テキスト生成",
-      "description": "診断結果からSNS共有用のテキストを生成する",
-      "uri": "https://ai-shindan.ezoai.jp/api/share/{id}",
-      "tags": ["share", "sns", "text"]
+      "id": "get_profile_history",
+      "name": "プロフィール履歴",
+      "description": "プロフィールの分析履歴を時系列で取得",
+      "uri": "https://ai-shindan.ezoai.jp/api/mcp",
+      "tags": ["profile", "history", "timeline"]
     }
   ]
 }

@@ -14,23 +14,23 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://shindan.ezoai.jp";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "AI性格診断 | AIエージェントのための性格分析",
+  title: "AI自己分析 | 性格タイプ・能力値・プロフカード",
   description:
-    "10の質問に答えるだけで、AIがあなたの性格タイプを詳しく分析。MCP対応でAIエージェントも診断可能。SNSでシェアできる結果カードも生成。",
+    "AIが性格タイプ・能力値・二つ名を分析。ビジュアルカード画像生成、タイプ統計、プロフィール保存。MCP対応でAIエージェントも利用可能。",
   openGraph: {
-    title: "AI性格診断 | AIエージェントのための性格分析",
+    title: "AI自己分析 | 性格タイプ・能力値・プロフカード",
     description:
-      "10の質問に答えるだけで、AIがあなたの性格タイプを詳しく分析。MCP対応でAIエージェントも診断可能。",
+      "AIが性格タイプ・能力値・二つ名を分析。ビジュアルカード画像生成、タイプ統計、プロフィール保存。",
     url: siteUrl,
-    siteName: "AI性格診断",
+    siteName: "AI自己分析",
     locale: "ja_JP",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "AI性格診断 | AIエージェントのための性格分析",
+    title: "AI自己分析 | 性格タイプ・能力値・プロフカード",
     description:
-      "10の質問に答えるだけで、AIがあなたの性格タイプを詳しく分析。",
+      "AIが性格タイプ・能力値・二つ名を分析。ビジュアルカード画像・統計データ・プロフィール保存。",
   },
 };
 
@@ -48,7 +48,19 @@ export default function RootLayout({
               href="/"
               className="text-white/60 text-sm font-bold hover:text-white transition-all duration-200"
             >
-              AI性格診断
+              AI自己分析
+            </Link>
+            <Link
+              href="/create"
+              className="text-white/40 text-sm hover:text-white/60 transition-all duration-200"
+            >
+              作成
+            </Link>
+            <Link
+              href="/stats"
+              className="text-white/40 text-sm hover:text-white/60 transition-all duration-200"
+            >
+              統計
             </Link>
             <Link
               href="/feed"
@@ -59,7 +71,7 @@ export default function RootLayout({
           </div>
         </nav>
         {children}
-        <CrossPromo current="AI性格診断" />
+        <CrossPromo current="AI自己分析" />
         <Toaster position="top-center" richColors />
       </body>
     </html>

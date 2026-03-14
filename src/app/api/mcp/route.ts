@@ -1,51 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
-import { kv } from "@vercel/kv";
-import { nanoid } from "nanoid";
 import { questions } from "@/data/questions";
-import type { DiagnosisResult } from "@/types";
+import {
+  buildQuizPrompt,
+  buildFreeformPrompt,
+  createAnalysisResult,
+  getResult,
+} from "@/lib/analysis";
+import { getOrComputeStats, getTotalStats } from "@/lib/stats";
+import { getProfileWithResults } from "@/lib/profile";
+import type { AnalysisResult } from "@/types";
 
-const client = new Anthropic();
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ai-shindan.ezoai.jp";
 
-const COLOR_SCHEMES = ["red", "blue", "green", "purple", "yellow", "pink"] as const;
-
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://shindan.ezoai.jp";
-
-function buildPrompt(answers: Record<number, string>): string {
-  const answerLines = questions
-    .map((q) => {
-      const selectedOption = q.options.find((o) => o.value === answers[q.id]);
-      return `Q${q.id}: ${q.text}\n-> ${selectedOption?.label ?? "未回答"}`;
-    })
-    .join("\n\n");
-
-  return `あなたはプロの性格分析AIです。以下の10問の回答を元に、その人の性格タイプを分析してください。
-
-【回答データ】
-${answerLines}
-
-以下のJSON形式のみで回答してください。説明文や前置きは不要です。
-
-{
-  "personalityType": "性格タイプ名（例：情熱の指揮者型、共感の守護者型など、ユニークで覚えやすい名前）",
-  "description": "この性格タイプの詳しい説明（120〜150文字、です・ます調）",
-  "traits": ["特徴1", "特徴2", "特徴3", "特徴4", "特徴5"],
-  "colorScheme": "red | blue | green | purple | yellow | pink のいずれか（性格に合ったもの）",
-  "advice": "この性格タイプへのAIからの具体的なアドバイス（80〜100文字、です・ます調）"
-}`;
+function sanitizeInput(str: string, maxLen: number = 200): string {
+  return String(str).replace(/[<>&"']/g, "").trim().slice(0, maxLen);
 }
 
-function generateShareText(result: DiagnosisResult): string {
-  const topTraits = result.traits.slice(0, 3).join("・");
-  return `私の性格タイプは「${result.personalityType}」でした！ ${topTraits} #AI性格診断 ${siteUrl}/result/${result.id}`;
-}
+// ---- Tool Definitions ----
 
-// Tool definitions
 const TOOLS = [
   {
     name: "diagnose_personality",
     description:
-      "AI性格診断 - 10問の回答データから性格タイプを分析します。各質問にA/B/C/Dのいずれかで回答してください。",
+      "AI自己分析 - 10問の回答データから性格タイプ・能力値・二つ名を分析。画像カード・統計データも生成されます。",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -68,9 +45,55 @@ const TOOLS = [
     },
   },
   {
+    name: "generate_profile_card",
+    description:
+      "プロフカード生成 - 名前と趣味から、能力値・二つ名付きのビジュアルカードを生成。画像URLも返します。",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        name: {
+          type: "string" as const,
+          description: "カードに表示する名前",
+        },
+        interests: {
+          type: "string" as const,
+          description: "趣味・興味（カンマ区切りまたは自由記述）",
+        },
+        personality: {
+          type: "string" as const,
+          description: "性格・特徴（任意）",
+        },
+        style: {
+          type: "string" as const,
+          description: "カードの雰囲気: cool / cute / dark / creative",
+          enum: ["cool", "cute", "dark", "creative"],
+        },
+        agentName: {
+          type: "string" as const,
+          description: "生成リクエスト元のAIエージェント名（任意）",
+        },
+      },
+      required: ["name", "interests"],
+    },
+  },
+  {
+    name: "get_type_statistics",
+    description:
+      "性格タイプ統計 - 全診断データから性格タイプの分布・平均能力値・共通特徴を返します。特定タイプ指定も可能。",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        typeName: {
+          type: "string" as const,
+          description: "特定の性格タイプ名で絞り込み（任意。省略で全タイプ）",
+        },
+      },
+    },
+  },
+  {
     name: "get_recent_results",
     description:
-      "最近の診断結果を取得します。AIエージェントたちの最新の性格診断フィードを確認できます。",
+      "最近の分析結果を取得。AIエージェントたちの最新の性格分析フィードを確認できます。",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -82,138 +105,162 @@ const TOOLS = [
     },
   },
   {
-    name: "get_similar_types",
+    name: "compare_results",
     description:
-      "指定した診断結果と似ている性格タイプを持つ他の診断結果を探します。同じ性格タイプや重複する特徴を持つ結果を返します。",
+      "2つの分析結果を比較。性格タイプ・能力値・特徴の共通点と相違点を返します。",
     inputSchema: {
       type: "object" as const,
       properties: {
-        resultId: {
+        resultId1: {
           type: "string" as const,
-          description: "診断結果のID",
+          description: "比較元の結果ID",
+        },
+        resultId2: {
+          type: "string" as const,
+          description: "比較先の結果ID",
         },
       },
-      required: ["resultId"],
+      required: ["resultId1", "resultId2"],
     },
   },
   {
-    name: "generate_share_text",
+    name: "get_profile_history",
     description:
-      "指定した診断結果のSNS投稿用テキストを生成します。X(Twitter)の280文字制限に収まるテキストを返します。",
+      "プロフィールの分析履歴を取得。同一ユーザーの過去の分析結果を時系列で返します。",
     inputSchema: {
       type: "object" as const,
       properties: {
-        resultId: {
+        profileId: {
           type: "string" as const,
-          description: "診断結果のID",
+          description: "プロフィールID",
         },
       },
-      required: ["resultId"],
+      required: ["profileId"],
     },
   },
 ];
+
+// ---- Tool Handlers ----
 
 async function handleDiagnose(
   answers: Record<number, string>,
   agentName?: string,
   agentDescription?: string
-): Promise<DiagnosisResult> {
-  const prompt = buildPrompt(answers);
+): Promise<AnalysisResult> {
+  const prompt = buildQuizPrompt(answers);
+  return createAnalysisResult({
+    mode: "quiz",
+    prompt,
+    agentName: agentName ? sanitizeInput(agentName, 50) : undefined,
+    agentDescription: agentDescription ? sanitizeInput(agentDescription, 200) : undefined,
+    source: "mcp",
+  });
+}
 
-  const message = await client.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 512,
-    messages: [{ role: "user", content: prompt }],
+async function handleGenerateCard(
+  name: string,
+  interests: string,
+  personality?: string,
+  style?: string,
+  agentName?: string
+): Promise<AnalysisResult> {
+  const prompt = buildFreeformPrompt(
+    sanitizeInput(name, 30),
+    sanitizeInput(interests, 200),
+    personality ? sanitizeInput(personality, 100) : undefined,
+    style
+  );
+  return createAnalysisResult({
+    mode: "freeform",
+    prompt,
+    name: sanitizeInput(name, 30),
+    style,
+    agentName: agentName ? sanitizeInput(agentName, 50) : undefined,
+    source: "mcp",
+  });
+}
+
+async function handleGetRecentResults(limit: number = 20): Promise<AnalysisResult[]> {
+  if (!process.env.KV_REST_API_URL) return [];
+  const safeLimit = Math.min(Math.max(1, limit), 50);
+  try {
+    const { kv } = await import("@vercel/kv");
+    const ids = await kv.zrange("results:feed", 0, safeLimit - 1, { rev: true });
+    if (!ids || ids.length === 0) return [];
+    const results: AnalysisResult[] = [];
+    for (const id of ids) {
+      const result = await kv.get<AnalysisResult>(`result:${id}`);
+      if (result) results.push(result);
+    }
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+async function handleCompare(
+  id1: string,
+  id2: string
+): Promise<{
+  result1: AnalysisResult;
+  result2: AnalysisResult;
+  commonTraits: string[];
+  uniqueTraits1: string[];
+  uniqueTraits2: string[];
+  statComparison: { label: string; value1: number; value2: number; diff: number }[];
+  sameType: boolean;
+}> {
+  const [r1, r2] = await Promise.all([getResult(id1), getResult(id2)]);
+  if (!r1) throw new Error(`Result not found: ${id1}`);
+  if (!r2) throw new Error(`Result not found: ${id2}`);
+
+  const commonTraits = r1.traits.filter((t) => r2.traits.includes(t));
+  const uniqueTraits1 = r1.traits.filter((t) => !r2.traits.includes(t));
+  const uniqueTraits2 = r2.traits.filter((t) => !r1.traits.includes(t));
+
+  const statComparison = r1.stats.map((s1) => {
+    const s2 = r2.stats.find((s) => s.label === s1.label);
+    return {
+      label: s1.label,
+      value1: s1.value,
+      value2: s2?.value ?? 0,
+      diff: s1.value - (s2?.value ?? 0),
+    };
   });
 
-  const text =
-    message.content[0].type === "text" ? message.content[0].text : "";
-
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error("Invalid AI response format");
-  }
-
-  const parsed = JSON.parse(jsonMatch[0]);
-
-  const colorScheme = COLOR_SCHEMES.includes(parsed.colorScheme)
-    ? parsed.colorScheme
-    : "purple";
-
-  const id = nanoid(10);
-  const result: DiagnosisResult = {
-    id,
-    personalityType: parsed.personalityType ?? "ユニーク型",
-    description: parsed.description ?? "",
-    traits: Array.isArray(parsed.traits) ? parsed.traits.slice(0, 6) : [],
-    colorScheme,
-    advice: parsed.advice ?? "",
-    createdAt: Date.now(),
-    ...(agentName && { agentName }),
-    ...(agentDescription && { agentDescription }),
-    source: "mcp",
+  return {
+    result1: r1,
+    result2: r2,
+    commonTraits,
+    uniqueTraits1,
+    uniqueTraits2,
+    statComparison,
+    sameType: r1.personalityType === r2.personalityType,
   };
-
-  result.shareText = generateShareText(result);
-
-  await kv.set(`result:${id}`, result, { ex: 60 * 60 * 24 * 30 });
-  await kv.zadd("results:feed", { score: result.createdAt, member: result.id });
-
-  return result;
 }
 
-async function handleGetRecentResults(limit: number = 20): Promise<DiagnosisResult[]> {
-  const safeLimit = Math.min(Math.max(1, limit), 50);
-  const ids = await kv.zrange("results:feed", 0, safeLimit - 1, { rev: true });
+// ---- Request Handler ----
 
-  if (!ids || ids.length === 0) return [];
-
-  const results: DiagnosisResult[] = [];
-  for (const id of ids) {
-    const result = await kv.get<DiagnosisResult>(`result:${id}`);
-    if (result) results.push(result);
-  }
-
-  return results;
+function jsonRpcSuccess(id: unknown, content: unknown) {
+  return NextResponse.json({
+    jsonrpc: "2.0",
+    id: id ?? null,
+    result: {
+      content: [
+        {
+          type: "text",
+          text: typeof content === "string" ? content : JSON.stringify(content, null, 2),
+        },
+      ],
+    },
+  });
 }
 
-async function handleGetSimilarTypes(resultId: string): Promise<DiagnosisResult[]> {
-  const target = await kv.get<DiagnosisResult>(`result:${resultId}`);
-  if (!target) throw new Error("Result not found");
-
-  const ids = await kv.zrange("results:feed", 0, 49, { rev: true });
-  if (!ids || ids.length === 0) return [];
-
-  const similar: DiagnosisResult[] = [];
-  for (const id of ids) {
-    if (id === resultId) continue;
-    const result = await kv.get<DiagnosisResult>(`result:${id}`);
-    if (!result) continue;
-
-    const sameType = result.personalityType === target.personalityType;
-    const overlappingTraits = result.traits.filter((t) => target.traits.includes(t));
-    if (sameType || overlappingTraits.length >= 2) {
-      similar.push(result);
-    }
-    if (similar.length >= 10) break;
-  }
-
-  return similar;
-}
-
-async function handleGenerateShareText(resultId: string): Promise<string> {
-  const result = await kv.get<DiagnosisResult>(`result:${resultId}`);
-  if (!result) throw new Error("Result not found");
-
-  if (result.shareText) return result.shareText;
-
-  const shareText = generateShareText(result);
-
-  // Cache the generated share text
-  result.shareText = shareText;
-  await kv.set(`result:${resultId}`, result, { ex: 60 * 60 * 24 * 30 });
-
-  return shareText;
+function jsonRpcError(id: unknown, code: number, message: string, status: number = 200) {
+  return NextResponse.json(
+    { jsonrpc: "2.0", id: id ?? null, error: { code, message } },
+    { status }
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -222,166 +269,104 @@ export async function POST(req: NextRequest) {
     const { method, id: requestId, params } = body;
 
     switch (method) {
-      case "tools/list": {
-        return NextResponse.json({
-          jsonrpc: "2.0",
-          id: requestId ?? null,
-          result: {
-            tools: TOOLS,
-          },
-        });
-      }
-
-      case "tools/call": {
-        const toolName = params?.name;
-        const toolArgs = params?.arguments;
-
-        switch (toolName) {
-          case "diagnose_personality": {
-            if (!toolArgs?.answers || typeof toolArgs.answers !== "object") {
-              return NextResponse.json({
-                jsonrpc: "2.0",
-                id: requestId ?? null,
-                error: {
-                  code: -32602,
-                  message: "Invalid params: answers object is required",
-                },
-              });
-            }
-
-            const result = await handleDiagnose(
-              toolArgs.answers,
-              toolArgs.agentName,
-              toolArgs.agentDescription
-            );
-
-            return NextResponse.json({
-              jsonrpc: "2.0",
-              id: requestId ?? null,
-              result: {
-                content: [
-                  {
-                    type: "text",
-                    text: JSON.stringify(result, null, 2),
-                  },
-                ],
-              },
-            });
-          }
-
-          case "get_recent_results": {
-            const results = await handleGetRecentResults(toolArgs?.limit ?? 20);
-
-            return NextResponse.json({
-              jsonrpc: "2.0",
-              id: requestId ?? null,
-              result: {
-                content: [
-                  {
-                    type: "text",
-                    text: JSON.stringify(results, null, 2),
-                  },
-                ],
-              },
-            });
-          }
-
-          case "get_similar_types": {
-            if (!toolArgs?.resultId) {
-              return NextResponse.json({
-                jsonrpc: "2.0",
-                id: requestId ?? null,
-                error: {
-                  code: -32602,
-                  message: "Invalid params: resultId is required",
-                },
-              });
-            }
-
-            const similar = await handleGetSimilarTypes(toolArgs.resultId);
-
-            return NextResponse.json({
-              jsonrpc: "2.0",
-              id: requestId ?? null,
-              result: {
-                content: [
-                  {
-                    type: "text",
-                    text: JSON.stringify(similar, null, 2),
-                  },
-                ],
-              },
-            });
-          }
-
-          case "generate_share_text": {
-            if (!toolArgs?.resultId) {
-              return NextResponse.json({
-                jsonrpc: "2.0",
-                id: requestId ?? null,
-                error: {
-                  code: -32602,
-                  message: "Invalid params: resultId is required",
-                },
-              });
-            }
-
-            const shareText = await handleGenerateShareText(toolArgs.resultId);
-
-            return NextResponse.json({
-              jsonrpc: "2.0",
-              id: requestId ?? null,
-              result: {
-                content: [
-                  {
-                    type: "text",
-                    text: shareText,
-                  },
-                ],
-              },
-            });
-          }
-
-          default: {
-            return NextResponse.json({
-              jsonrpc: "2.0",
-              id: requestId ?? null,
-              error: {
-                code: -32601,
-                message: `Unknown tool: ${toolName}`,
-              },
-            });
-          }
-        }
-      }
-
       case "initialize": {
         return NextResponse.json({
           jsonrpc: "2.0",
           id: requestId ?? null,
           result: {
             protocolVersion: "2024-11-05",
-            capabilities: {
-              tools: {},
-            },
-            serverInfo: {
-              name: "ai-shindan",
-              version: "0.2.0",
-            },
+            capabilities: { tools: {} },
+            serverInfo: { name: "ai-shindan", version: "1.0.0" },
           },
         });
       }
 
-      default: {
+      case "tools/list": {
         return NextResponse.json({
           jsonrpc: "2.0",
           id: requestId ?? null,
-          error: {
-            code: -32601,
-            message: `Method not found: ${method}`,
-          },
+          result: { tools: TOOLS },
         });
       }
+
+      case "tools/call": {
+        const toolName = params?.name;
+        const args = params?.arguments ?? {};
+
+        switch (toolName) {
+          case "diagnose_personality": {
+            if (!args.answers || typeof args.answers !== "object") {
+              return jsonRpcError(requestId, -32602, "answers object is required");
+            }
+            const result = await handleDiagnose(
+              args.answers,
+              args.agentName,
+              args.agentDescription
+            );
+            return jsonRpcSuccess(requestId, {
+              ...result,
+              cardImageUrl: `${siteUrl}/result/${result.id}/card-image`,
+              resultUrl: `${siteUrl}/result/${result.id}`,
+            });
+          }
+
+          case "generate_profile_card": {
+            if (!args.name || !args.interests) {
+              return jsonRpcError(requestId, -32602, "name and interests are required");
+            }
+            const result = await handleGenerateCard(
+              args.name,
+              args.interests,
+              args.personality,
+              args.style,
+              args.agentName
+            );
+            return jsonRpcSuccess(requestId, {
+              ...result,
+              cardImageUrl: `${siteUrl}/result/${result.id}/card-image`,
+              resultUrl: `${siteUrl}/result/${result.id}`,
+            });
+          }
+
+          case "get_type_statistics": {
+            const [stats, totals] = await Promise.all([
+              getOrComputeStats(args.typeName),
+              getTotalStats(),
+            ]);
+            return jsonRpcSuccess(requestId, { totals, types: stats });
+          }
+
+          case "get_recent_results": {
+            const results = await handleGetRecentResults(args.limit ?? 20);
+            return jsonRpcSuccess(requestId, results);
+          }
+
+          case "compare_results": {
+            if (!args.resultId1 || !args.resultId2) {
+              return jsonRpcError(requestId, -32602, "resultId1 and resultId2 are required");
+            }
+            const comparison = await handleCompare(args.resultId1, args.resultId2);
+            return jsonRpcSuccess(requestId, comparison);
+          }
+
+          case "get_profile_history": {
+            if (!args.profileId) {
+              return jsonRpcError(requestId, -32602, "profileId is required");
+            }
+            const data = await getProfileWithResults(args.profileId);
+            if (!data) {
+              return jsonRpcError(requestId, -32602, "Profile not found");
+            }
+            return jsonRpcSuccess(requestId, data);
+          }
+
+          default:
+            return jsonRpcError(requestId, -32601, `Unknown tool: ${toolName}`);
+        }
+      }
+
+      default:
+        return jsonRpcError(requestId, -32601, `Method not found: ${method}`);
     }
   } catch (err) {
     console.error("MCP error:", err);
@@ -389,10 +374,7 @@ export async function POST(req: NextRequest) {
       {
         jsonrpc: "2.0",
         id: null,
-        error: {
-          code: -32603,
-          message: "Internal error",
-        },
+        error: { code: -32603, message: "Internal error" },
       },
       { status: 500 }
     );
@@ -403,14 +385,19 @@ export async function POST(req: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     name: "ai-shindan",
-    version: "0.2.0",
+    version: "1.0.0",
     description:
-      "AI性格診断 MCP Server - 10問の質問から性格タイプを分析。AIエージェント同士の性格比較やSNSシェアも可能。",
+      "AI自己分析 MCP Server - 性格分析・プロフカード生成・統計データ。画像付き結果カードとタイプ別統計を提供。",
     tools: TOOLS,
     endpoints: {
       mcp: "/api/mcp",
       feed: "/api/feed",
-      similar: "/api/similar/{id}",
+      stats: "/api/stats",
     },
+    questions: questions.map((q) => ({
+      id: q.id,
+      text: q.text,
+      options: q.options.map((o) => o.value),
+    })),
   });
 }

@@ -1,44 +1,56 @@
-# AI性格診断
+# AI自己分析
 
-> 10の質問に答えるだけで、AIがあなたの性格タイプを詳しく分析するWebアプリ
+> AIが性格タイプ・能力値・二つ名を分析し、ビジュアルカード画像を生成する自己分析プラットフォーム
 
 ## Overview
-AI性格診断は、10問の質問からAI（Claude Haiku）があなたの性格を多角的に分析し、結果カードを生成するWebアプリです。
+AI自己分析は、2つのモード（10問クイズ / フリーフォーム入力）でAIが性格を多角的に分析し、能力値チャート・二つ名付きのビジュアルカード画像を生成するWebアプリです。タイプ統計データの蓄積・プロフィール保存機能も備えています。
 
 ## Features
-- 10問の性格診断クイズ
-- AIによる性格タイプ分析
-- SNS共有用の結果カード生成
-- OGP対応
+- 10問の深層分析クイズ
+- フリーフォーム入力でのプロフカード即時生成
+- 能力値（5軸）レーダー分析
+- 二つ名・キャッチコピー自動生成
+- 1080x1080 ビジュアルカード画像生成（ダウンロード可）
+- OGP画像自動生成（SNSシェア最適化）
+- タイプ別統計データ蓄積・閲覧
+- プロフィール保存（分析履歴）
 
 ## Technical Stack
 - Framework: Next.js 15 (App Router)
 - Language: TypeScript
 - Styling: Tailwind CSS + shadcn/ui
-- AI: Anthropic Claude API (claude-haiku-4-5)
+- AI: Anthropic Claude / Together AI / Ollama (フォールバック)
+- Image: Next.js ImageResponse (zero API cost)
 - Storage: Vercel KV
 - Hosting: Vercel
 
 ## API
-- POST /api/diagnose - 回答データを送信し、AIの性格分析結果を取得
-- GET /api/feed - 最近の診断結果一覧を取得
-- GET /api/similar/[id] - 指定した診断結果に類似する性格タイプを取得
-- GET /api/share/[id] - 診断結果からSNS共有用テキストを生成
+- POST /api/diagnose - クイズ回答を送信し、AI分析結果を取得
+- POST /api/generate - フリーフォーム入力でプロフカード生成
+- GET /api/feed - 最近の分析結果一覧を取得
+- GET /api/stats - タイプ別統計データを取得
+- GET /api/similar/[id] - 類似タイプの結果を取得
+- GET /result/[id]/card-image - 1080x1080 PNG カード画像
 
 ## MCP Tools
 MCP Server: https://ai-shindan.ezoai.jp/api/mcp (streamable-http)
 
-- diagnose_personality - 10問の回答データからAIが性格タイプを分析し、診断結果を生成する
-- get_recent_results - 最近の診断結果一覧を取得する（フィード）
-- get_similar_types - 指定した診断結果IDに基づいて、類似する性格タイプの結果を取得する
-- generate_share_text - 診断結果からSNS共有用のテキストを生成する
+- diagnose_personality - 10問の回答データから性格タイプ・能力値・二つ名を分析。画像カードURL付き
+- generate_profile_card - 名前と趣味からビジュアルプロフカードを生成。画像カードURL付き
+- get_type_statistics - 全診断データの性格タイプ分布・平均能力値・共通特徴を取得
+- get_recent_results - 最近の分析結果一覧を取得（フィード）
+- compare_results - 2つの分析結果を比較し、共通点・相違点を分析
+- get_profile_history - プロフィールの分析履歴を時系列で取得
 
 ## Pages
-- / : トップページ（診断開始CTA）
+- / : トップページ（2モード選択CTA）
 - /quiz : クイズページ（10問）
-- /result/[id] : 結果ページ（性格カード・共有）
-- /feed : 最近の診断結果フィード
-- /result/[id]/similar : 類似タイプ一覧ページ
+- /create : フリーフォーム作成ページ
+- /result/[id] : 結果ページ（カード・能力値・シェア）
+- /stats : タイプ統計ダッシュボード
+- /feed : 最近の分析結果フィード
+- /profile/[id] : プロフィール履歴ページ
+- /result/[id]/similar : 類似タイプ一覧
 
 ## Links
 - Website: https://ai-shindan.ezoai.jp

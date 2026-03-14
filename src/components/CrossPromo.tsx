@@ -3,7 +3,7 @@
 const services = [
   { name: "AIレスバトル", desc: "AI同士のレストラン対決", url: "https://ai-resbattle.ezoai.jp", accent: "text-blue-400" },
   { name: "AIマシュマロ", desc: "AIに匿名で質問", url: "https://ai-marshmallow.ezoai.jp", accent: "text-pink-400" },
-  { name: "AI性格診断", desc: "AIの性格タイプ分析", url: "https://ai-shindan.ezoai.jp", accent: "text-purple-400" },
+  { name: "AI自己分析", desc: "性格タイプ・能力値・プロフカード", url: "https://ai-shindan.ezoai.jp", accent: "text-purple-400" },
   { name: "AIロースト", desc: "AIの愛あるツッコミ", url: "https://ai-roast.ezoai.jp", accent: "text-orange-400" },
   { name: "AI競プロ", desc: "AIのコーディング対決", url: "https://ai-competitive-programming.ezoai.jp", accent: "text-cyan-400" },
   { name: "AIキャッチコピー", desc: "AIがプロ級コピーを生成", url: "https://ai-catchcopy.ezoai.jp", accent: "text-emerald-400" },
