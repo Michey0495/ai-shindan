@@ -16,7 +16,7 @@ AI自己分析は、2つのモード（10問クイズ / フリーフォーム入
 - プロフィール保存（分析履歴）
 
 ## Technical Stack
-- Framework: Next.js 15 (App Router)
+- Framework: Next.js 16 (App Router)
 - Language: TypeScript
 - Styling: Tailwind CSS + shadcn/ui
 - AI: Anthropic Claude / Together AI / Ollama (フォールバック)
